@@ -1,0 +1,18 @@
+spring:
+  config:
+      import: optional:file:.env[.properties]
+  application:
+    name: telegramHelperBot
+
+telegram:
+  bot:
+    username: ${telegram.bot.username}
+    token: ${telegram.bot.token}
+
+
+proxy:
+  api:
+    key: ${proxy.api.key}
+
+server:
+  port: 0

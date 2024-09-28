@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: openAiApi
+  config:
+    import: optional:file:.env[.properties]
+
+
+proxy:
+  api:
+    key: ${proxy.api.key}
+
+
+server:
+  port: 0
