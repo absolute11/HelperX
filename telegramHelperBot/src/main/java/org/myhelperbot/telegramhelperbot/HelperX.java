@@ -19,8 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.myhelperbot.telegramhelperbot.config.RabbitMqConfig.NEWS_REQUEST_QUEUE;
-import static org.myhelperbot.telegramhelperbot.config.RabbitMqConfig.WEATHER_REQUEST_QUEUE;
+import static org.myhelperbot.telegramhelperbot.config.RabbitMqConfig.*;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +35,7 @@ public class HelperX extends TelegramLongPollingBot {
     private boolean waitingForNewsRequest = false;
     private boolean waitingForQuestion = false; // Для ожидания вопроса ChatGPT
     private boolean waitingForWeatherRequest = false;
+    private boolean waitingForMovieRequest = false;
 
     // Хранение новостей для каждого пользователя
 
@@ -67,7 +67,13 @@ public class HelperX extends TelegramLongPollingBot {
                 sendGptRequest(chatId, receivedMessage); // Отправляем вопрос в GPT
                 waitingForQuestion = false; // Сбрасываем флаг
                 sendMessage(chatId, "Ваш запрос отправлен, ожидайте ответа...");
-            } else if (waitingForWeatherRequest && !receivedMessage.startsWith("/")) {
+            }
+            else if (waitingForMovieRequest && !receivedMessage.startsWith("/")) {
+                sendMovieRequest(chatId, receivedMessage); // Отправляем вопрос в GPT
+                waitingForMovieRequest = false; // Сбрасываем флаг
+                sendMessage(chatId, "Ваш запрос отправлен, ожидайте ответа...");
+            }
+            else if (waitingForWeatherRequest && !receivedMessage.startsWith("/")) {
                 sendWeatherRequest(chatId,receivedMessage);
                 waitingForWeatherRequest = false;
                 sendMessage(chatId,"Получаю данные о погоде, подождите...");
@@ -91,6 +97,10 @@ public class HelperX extends TelegramLongPollingBot {
                         waitingForWeatherRequest = true;
                         // Активируем режим ожидания темы новостей
                         break;
+                    case "/movie":
+                        sendMessage(chatId, "Введите название фильма:");
+                        waitingForMovieRequest = true; // Активируем режим ожидания темы новостей
+                        break;
                     case "/news":
                         sendMessage(chatId, "Введите тему для поиска новостей:");
                         waitingForNewsRequest = true; // Активируем режим ожидания темы новостей
@@ -111,6 +121,15 @@ public class HelperX extends TelegramLongPollingBot {
         try {
             ApiRequest<String> request = new ApiRequest<>(chatId, userMessage);
             rabbitTemplate.convertAndSend("gpt-request-queue", request); // Отправляем запрос в очередь GPT
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendMessage(chatId, "Произошла ошибка при отправке запроса в ChatGPT.");
+        }
+    }
+    private void sendMovieRequest(Long chatId, String userMessage) {
+        try {
+            ApiRequest<String> request = new ApiRequest<>(chatId, userMessage);
+            rabbitTemplate.convertAndSend(MOVIE_REQUEST_QUEUE, request); // Отправляем запрос в очередь GPT
         } catch (Exception e) {
             e.printStackTrace();
             sendMessage(chatId, "Произошла ошибка при отправке запроса в ChatGPT.");
@@ -167,6 +186,7 @@ public class HelperX extends TelegramLongPollingBot {
         row1.add(new KeyboardButton("/menu"));
         row1.add(new KeyboardButton("/help"));
         row1.add(new KeyboardButton("/weather"));
+        row1.add(new KeyboardButton("/movie"));
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(new KeyboardButton("/about"));
@@ -187,14 +207,20 @@ public class HelperX extends TelegramLongPollingBot {
                 "/help - получить помощь по командам бота\n" +
                 "/about - узнать больше о боте\n" +
                 "/news - узнать новости на любую тему\n" +
-                "/news - узнать погоду в любом городе\n" +
+                "/weather - узнать погоду в любом городе\n" +
+                "/movie - узнать погоду в любом городе\n" +
                 "/ask - задать вопрос ChatGPT";
 
         sendMessage(chatId, menuText);
     }
 
     private void sendHelpMessage(Long chatId) {
-        String helpText = "Помощь по использованию бота!";
+        String helpText = "Помощь по использованию бота:\n" +
+                "/start - начать работу с ботом\n" +
+                "/menu - показать меню\n" +
+                "Все запросы к боту пишутся только после соответсвующих команд";
+
+
         sendMessage(chatId, helpText);
     }
 
