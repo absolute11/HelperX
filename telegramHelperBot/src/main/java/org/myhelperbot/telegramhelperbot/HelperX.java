@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.myhelperbot.telegramhelperbot.config.RabbitMqConfig.NEWS_REQUEST_QUEUE;
+import static org.myhelperbot.telegramhelperbot.config.RabbitMqConfig.WEATHER_REQUEST_QUEUE;
 
 @Component
 @RequiredArgsConstructor
@@ -34,9 +35,10 @@ public class HelperX extends TelegramLongPollingBot {
 
     private boolean waitingForNewsRequest = false;
     private boolean waitingForQuestion = false; // Для ожидания вопроса ChatGPT
+    private boolean waitingForWeatherRequest = false;
 
     // Хранение новостей для каждого пользователя
-    private final Map<Long, List<String>> newsCacheMap = new HashMap<>();
+
 
     @Override
     public String getBotUsername() {
@@ -65,6 +67,11 @@ public class HelperX extends TelegramLongPollingBot {
                 sendGptRequest(chatId, receivedMessage); // Отправляем вопрос в GPT
                 waitingForQuestion = false; // Сбрасываем флаг
                 sendMessage(chatId, "Ваш запрос отправлен, ожидайте ответа...");
+            } else if (waitingForWeatherRequest && !receivedMessage.startsWith("/")) {
+                sendWeatherRequest(chatId,receivedMessage);
+                waitingForWeatherRequest = false;
+                sendMessage(chatId,"Получаю данные о погоде, подождите...");
+
             } else {
                 switch (receivedMessage) {
                     case "/start":
@@ -78,6 +85,11 @@ public class HelperX extends TelegramLongPollingBot {
                         break;
                     case "/about":
                         sendAboutMessage(chatId);
+                        break;
+                    case "/weather":
+                        sendMessage(chatId, "Введите город в котором хотите узнать погоду:");
+                        waitingForWeatherRequest = true;
+                        // Активируем режим ожидания темы новостей
                         break;
                     case "/news":
                         sendMessage(chatId, "Введите тему для поиска новостей:");
@@ -115,6 +127,15 @@ public class HelperX extends TelegramLongPollingBot {
             sendMessage(chatId, "Произошла ошибка при отправке запроса в News API.");
         }
     }
+    private void sendWeatherRequest(Long chatId, String userMessage) {
+        try {
+            ApiRequest<String> request = new ApiRequest<>(chatId, userMessage);
+            rabbitTemplate.convertAndSend(WEATHER_REQUEST_QUEUE, request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendMessage(chatId, "Произошла ошибка при отправке запроса в Weather API.");
+        }
+    }
 
     public void handleNewsResponse(Long chatId, String news) {
         sendMessage(chatId, news); // Отправляем строку с новостями
@@ -145,6 +166,7 @@ public class HelperX extends TelegramLongPollingBot {
         KeyboardRow row1 = new KeyboardRow();
         row1.add(new KeyboardButton("/menu"));
         row1.add(new KeyboardButton("/help"));
+        row1.add(new KeyboardButton("/weather"));
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(new KeyboardButton("/about"));
@@ -165,6 +187,7 @@ public class HelperX extends TelegramLongPollingBot {
                 "/help - получить помощь по командам бота\n" +
                 "/about - узнать больше о боте\n" +
                 "/news - узнать новости на любую тему\n" +
+                "/news - узнать погоду в любом городе\n" +
                 "/ask - задать вопрос ChatGPT";
 
         sendMessage(chatId, menuText);

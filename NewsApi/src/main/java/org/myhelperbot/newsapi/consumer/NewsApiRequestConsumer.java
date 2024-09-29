@@ -11,9 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 
 import static org.myhelperbot.newsapi.config.RabbitMQConfig.NEWS_RESPONSE_QUEUE;
 
@@ -32,11 +34,12 @@ public class NewsApiRequestConsumer {
         try {
             String query = request.getRequestData();
             Long chatId = request.getChatId();
+            String encodingQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
 
             // Отправляем запрос к NewsAPI
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("https://newsapi.org/v2/everything?q=" + query + "&apiKey=" + newsApiKey))
+                    .uri(URI.create("https://newsapi.org/v2/everything?q=" + encodingQuery + "&apiKey=" + newsApiKey))
                     .GET()
                     .build();
 
@@ -58,9 +61,14 @@ public class NewsApiRequestConsumer {
                         .append("[Читать далее](").append(url).append(")\n\n");
             }
 
-            // Отправляем одну строку в responseData
-            ApiResponse<String> apiResponse = new ApiResponse<>(chatId, formattedArticles.toString());
-            rabbitTemplate.convertAndSend(NEWS_RESPONSE_QUEUE, apiResponse);
+            // Проверка на пустое сообщение
+            if (formattedArticles.length() == 0) {
+                ApiResponse<String> apiResponse = new ApiResponse<>(chatId, "По вашему запросу ничего не найдено.");
+                rabbitTemplate.convertAndSend(NEWS_RESPONSE_QUEUE, apiResponse);
+            } else {
+                ApiResponse<String> apiResponse = new ApiResponse<>(chatId, formattedArticles.toString());
+                rabbitTemplate.convertAndSend(NEWS_RESPONSE_QUEUE, apiResponse);
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
