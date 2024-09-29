@@ -17,6 +17,19 @@ public class RabbitMqConfig {
 
     public static final String WEATHER_REQUEST_QUEUE = "weather-request-queue";
     public static final String WEATHER_RESPONSE_QUEUE = "weather-response-queue";
+    public static final String MOVIE_REQUEST_QUEUE = "movie-request-queue";
+
+    public static final String MOVIE_RESPONSE_QUEUE = "movie-response-queue";
+
+    @Bean
+    public Queue movieRequestQueue(){
+        return new Queue(MOVIE_REQUEST_QUEUE);
+    }
+
+    @Bean
+    public Queue movieResponseQueue(){
+        return new Queue(MOVIE_RESPONSE_QUEUE);
+    }
 
     @Bean
     public Queue weatherRequestQueue() {

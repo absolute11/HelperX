@@ -60,6 +60,7 @@ public class OpenAiRequestConsumer {
 
         } catch (Exception e) {
             e.printStackTrace();
+
         }
     }
 
