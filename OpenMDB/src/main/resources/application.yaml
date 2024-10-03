@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: OpenMDB
+
+
+  config:
+    import: optional:file:.env[.properties]
+
+
+server:
+  port: 0
+
+
+open:
+  moviedb: "${openmdb}"
+
