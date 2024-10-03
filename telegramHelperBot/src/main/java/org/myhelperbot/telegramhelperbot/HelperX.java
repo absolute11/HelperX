@@ -3,13 +3,20 @@ package org.myhelperbot.telegramhelperbot;
 import lombok.RequiredArgsConstructor;
 import org.myhelperbot.telegramhelperbot.dto.ApiRequest;
 import org.myhelperbot.telegramhelperbot.dto.ApiResponse;
+import org.myhelperbot.telegramhelperbot.dto.Recipe;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -36,6 +43,7 @@ public class HelperX extends TelegramLongPollingBot {
     private boolean waitingForQuestion = false; // Для ожидания вопроса ChatGPT
     private boolean waitingForWeatherRequest = false;
     private boolean waitingForMovieRequest = false;
+    private boolean waitingForFoodRequest = false;
 
     // Хранение новостей для каждого пользователя
 
@@ -67,16 +75,18 @@ public class HelperX extends TelegramLongPollingBot {
                 sendGptRequest(chatId, receivedMessage); // Отправляем вопрос в GPT
                 waitingForQuestion = false; // Сбрасываем флаг
                 sendMessage(chatId, "Ваш запрос отправлен, ожидайте ответа...");
-            }
-            else if (waitingForMovieRequest && !receivedMessage.startsWith("/")) {
+            } else if (waitingForMovieRequest && !receivedMessage.startsWith("/")) {
                 sendMovieRequest(chatId, receivedMessage); // Отправляем вопрос в GPT
                 waitingForMovieRequest = false; // Сбрасываем флаг
                 sendMessage(chatId, "Ваш запрос отправлен, ожидайте ответа...");
-            }
-            else if (waitingForWeatherRequest && !receivedMessage.startsWith("/")) {
-                sendWeatherRequest(chatId,receivedMessage);
+            } else if (waitingForWeatherRequest && !receivedMessage.startsWith("/")) {
+                sendWeatherRequest(chatId, receivedMessage);
                 waitingForWeatherRequest = false;
-                sendMessage(chatId,"Получаю данные о погоде, подождите...");
+                sendMessage(chatId, "Получаю данные о погоде, подождите...");
+
+            } else if (waitingForFoodRequest && !receivedMessage.startsWith("/")) {
+                sendFoodRequest(chatId, receivedMessage); // Отправляем запрос на Spoonacular
+                waitingForFoodRequest = false; // Сбрасываем флаг
 
             } else {
                 switch (receivedMessage) {
@@ -109,9 +119,35 @@ public class HelperX extends TelegramLongPollingBot {
                         sendMessage(chatId, "Введите свой вопрос для ChatGPT:");
                         waitingForQuestion = true; // Активируем режим ожидания вопроса для ChatGPT
                         break;
+                    case "/food":
+                        sendMessage(chatId, "Введите название блюда для поиска рецептов:");
+                        waitingForFoodRequest = true; // Активируем режим ожидания названия блюда
+                        break;
                     default:
                         sendDefaultMessage(chatId); // Обрабатываем неизвестные команды
                 }
+            }
+        }
+        else if (update.hasCallbackQuery()) {
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            String data = callbackQuery.getData();
+            Long chatId = callbackQuery.getMessage().getChatId();
+
+            if (data.startsWith("recipe_")) {
+                int recipeId = Integer.parseInt(data.split("_")[1]);
+                handleShowRecipe(chatId, recipeId); // Вызываем метод для обработки запроса рецепта по ID
+
+                // Отправляем сообщение пользователю о том, что запрос обрабатывается
+
+            }
+
+            // Отправляем "ok" для удаления часиков на кнопке
+            AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
+            answerCallbackQuery.setCallbackQueryId(callbackQuery.getId());
+            try {
+                execute(answerCallbackQuery);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -126,6 +162,19 @@ public class HelperX extends TelegramLongPollingBot {
             sendMessage(chatId, "Произошла ошибка при отправке запроса в ChatGPT.");
         }
     }
+
+    private void sendFoodRequest(Long chatId, String foodName) {
+        try {
+            // Формируем запрос для отправки в очередь
+            ApiRequest<String> request = new ApiRequest<>(chatId, foodName);
+            rabbitTemplate.convertAndSend(SPOONACULAR_SEARCH_QUEUE, request); // Отправляем запрос в RabbitMQ
+            sendMessage(chatId, "Идет поиск рецептов, подождите...");
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendMessage(chatId, "Произошла ошибка при отправке запроса на Spoonacular.");
+        }
+    }
+
     private void sendMovieRequest(Long chatId, String userMessage) {
         try {
             ApiRequest<String> request = new ApiRequest<>(chatId, userMessage);
@@ -146,6 +195,7 @@ public class HelperX extends TelegramLongPollingBot {
             sendMessage(chatId, "Произошла ошибка при отправке запроса в News API.");
         }
     }
+
     private void sendWeatherRequest(Long chatId, String userMessage) {
         try {
             ApiRequest<String> request = new ApiRequest<>(chatId, userMessage);
@@ -155,13 +205,16 @@ public class HelperX extends TelegramLongPollingBot {
             sendMessage(chatId, "Произошла ошибка при отправке запроса в Weather API.");
         }
     }
+    private void handleShowRecipe(Long chatId, int recipeId) {
+        // Формируем запрос для получения полного рецепта
+        ApiRequest<Integer> request = new ApiRequest<>(chatId, recipeId);
+        rabbitTemplate.convertAndSend(SPOONACULAR_RECIPE_DETAILS_QUEUE, request); // Отправляем запрос на подробности рецепта
+        sendMessage(chatId, "Получаю полный рецепт, подождите...");
+    }
 
     public void handleNewsResponse(Long chatId, String news) {
         sendMessage(chatId, news); // Отправляем строку с новостями
     }
-
-
-
 
 
     private void sendStartMessage(Long chatId) {
@@ -192,6 +245,7 @@ public class HelperX extends TelegramLongPollingBot {
         row2.add(new KeyboardButton("/about"));
         row2.add(new KeyboardButton("/ask"));
         row2.add(new KeyboardButton("/news"));
+        row2.add(new KeyboardButton("/food"));
 
         keyboard.add(row1);
         keyboard.add(row2);
@@ -209,6 +263,7 @@ public class HelperX extends TelegramLongPollingBot {
                 "/news - узнать новости на любую тему\n" +
                 "/weather - узнать погоду в любом городе\n" +
                 "/movie - узнать погоду в любом городе\n" +
+                "/food - получить любое блюдо по названию\n" +
                 "/ask - задать вопрос ChatGPT";
 
         sendMessage(chatId, menuText);
@@ -260,5 +315,44 @@ public class HelperX extends TelegramLongPollingBot {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void handleRecipeSearchResponse(Long chatId, List<Recipe> recipes) {
+        if (recipes == null || recipes.isEmpty()) {
+            sendMessage(chatId, "Рецепты не найдены по вашему запросу.");
+            return;
+        }
+
+        // Отправляем каждый рецепт пользователю
+        for (Recipe recipe : recipes) {
+            // Отправка изображения с названием рецепта и кнопкой "Показать рецепт"
+            SendPhoto sendPhoto = SendPhoto.builder()
+                    .chatId(chatId.toString())
+                    .photo(new InputFile(recipe.getImageUrl())) // URL изображения
+                    .caption("*" + recipe.getTitle() + "*") // Название рецепта
+                    .parseMode("Markdown")
+                    .replyMarkup(getShowRecipeButton(recipe.getId())) // Добавляем инлайн-клавиатуру с кнопкой "Показать рецепт"
+                    .build();
+
+            try {
+                execute(sendPhoto);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+                sendMessage(chatId, "Произошла ошибка при отправке рецепта " + recipe.getTitle());
+            }
+        }
+    }
+    private InlineKeyboardMarkup getShowRecipeButton(int recipeId) {
+        InlineKeyboardButton button = InlineKeyboardButton.builder()
+                .text("Показать рецепт")
+                .callbackData("recipe_" + recipeId) // Уникальный ID рецепта в callbackData
+                .build();
+
+        List<InlineKeyboardButton> keyboardButtonsRow = List.of(button);
+        List<List<InlineKeyboardButton>> keyboard = List.of(keyboardButtonsRow);
+
+        return InlineKeyboardMarkup.builder()
+                .keyboard(keyboard)
+                .build();
     }
 }
