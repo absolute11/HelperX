@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: foodApi
+
+  config:
+    import: optional:file:.env[.properties]
+
+
+server:
+  port: 0
+
+food:
+  api:
+    key: ${food.api.key}

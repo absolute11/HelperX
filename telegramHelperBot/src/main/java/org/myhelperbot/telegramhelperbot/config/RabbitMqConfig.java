@@ -20,11 +20,27 @@ public class RabbitMqConfig {
     public static final String MOVIE_REQUEST_QUEUE = "movie-request-queue";
 
     public static final String MOVIE_RESPONSE_QUEUE = "movie-response-queue";
+    public static final String SPOONACULAR_SEARCH_QUEUE = "spoonacular-search-queue";
+    public static final String SPOONACULAR_RESPONSE_QUEUE = "spoonacular-response-queue";
+    public static final String SPOONACULAR_RECIPE_DETAILS_QUEUE = "spoonacular-recipe-details-queue";
+    @Bean
+    public Queue spoonacularRecipeDetailsQueue() {
+        return new Queue(SPOONACULAR_RECIPE_DETAILS_QUEUE, true);
+    }
 
     @Bean
     public Queue movieRequestQueue(){
         return new Queue(MOVIE_REQUEST_QUEUE);
     }
+    @Bean
+    public Queue spoonacularResponseQueue() {
+        return new Queue(SPOONACULAR_RESPONSE_QUEUE, true);
+    }
+    @Bean
+    public Queue spoonacularSearchQueue() {
+        return new Queue(SPOONACULAR_SEARCH_QUEUE, true);
+    }
+
 
     @Bean
     public Queue movieResponseQueue(){
