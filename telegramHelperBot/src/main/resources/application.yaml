@@ -1,4 +1,9 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
   config:
       import: optional:file:.env[.properties]
   application:
@@ -15,4 +20,4 @@ proxy:
     key: ${proxy.api.key}
 
 server:
-  port: 0
+  port: 8080

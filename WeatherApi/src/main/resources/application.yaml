@@ -1,4 +1,9 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
   application:
     name: WeatherApi
   config:
@@ -7,3 +12,6 @@ spring:
 weather:
   api:
     key: "${weather.api.key}"
+
+server:
+  port: 8084

@@ -1,4 +1,9 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
   application:
     name: OpenMDB
 
@@ -8,7 +13,7 @@ spring:
 
 
 server:
-  port: 0
+  port: 8083
 
 
 open:

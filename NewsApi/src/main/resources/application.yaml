@@ -1,4 +1,9 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
   application:
     name: NewsApi
 
@@ -12,4 +17,4 @@ spring:
 newsapi:
   key: ${newsapi.key}
 server:
-  port: 0
+  port: 8082
