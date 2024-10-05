@@ -1,4 +1,9 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
   application:
     name: openAiApi
   config:
@@ -11,4 +16,4 @@ proxy:
 
 
 server:
-  port: 0
+  port: 8081

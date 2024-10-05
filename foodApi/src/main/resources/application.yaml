@@ -1,4 +1,10 @@
 spring:
+  rabbitmq:
+    host: "${spring.rabbitmq.host}"
+    port: "${spring.rabbitmq.port}"
+    username: "${spring.rabbitmq.username}"
+    password: "${spring.rabbitmq.password}"
+
   application:
     name: foodApi
 
@@ -7,8 +13,9 @@ spring:
 
 
 server:
-  port: 0
+  port: 8086
 
 food:
   api:
     key: ${food.api.key}
+
